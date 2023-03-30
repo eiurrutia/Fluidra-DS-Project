@@ -1,0 +1,27 @@
+[tool.poetry]
+name = "fluidra-ds-project"
+version = "0.1.0"
+description = "Fluidra Data Science Project"
+authors = ["eiurrutia <eiurrutia@uc.cl>"]
+readme = "README.md"
+packages = [{include = "fluidra_ds_project"}]
+
+[tool.poetry.dependencies]
+python = "^3.8"
+panda = "^0.3.1"
+numpy = "^1.24.2"
+seaborn = "^0.12.2"
+matplotlib = "^3.7.1"
+jupyter = "^1.0.0"
+scikit-learn = "^1.2.2"
+xgboost = "^1.7.4"
+pandasql = "^0.7.3"
+SQLAlchemy = "1.4.46"
+psycopg2 = "^2.9.5"
+
+[tool.poetry.group.dev.dependencies]
+autopep8 = "^2.0.2"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
