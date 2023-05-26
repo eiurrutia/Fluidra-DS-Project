@@ -94,17 +94,7 @@ def app():
         st.subheader('Algoritmo')
         if st.button("Ejecutar algoritmo"):
             
-            # Aquí puedes hacer la transición a otra vista o ejecutar tu algoritmo
-            alg.unique_individuals = set()
-            alg.evaluations_count = 0
-            alg.ORDERS = [
-                {'id': 5160396, 'good_qty': 100, 'theorical_time': 2.5, 'registers_qty': 30, 'operators_distinct_qty': 2, 'days_accumulated_experience': 102, 'OFs_accumulated_experience': 50},
-                {'id': 5169247, 'good_qty': 200, 'theorical_time': 3.0, 'registers_qty': 10, 'operators_distinct_qty': 3, 'days_accumulated_experience': 102, 'OFs_accumulated_experience': 50},
-                {'id': 5171973, 'good_qty': 150, 'theorical_time': 2.0, 'registers_qty': 50, 'operators_distinct_qty': 4, 'days_accumulated_experience': 102, 'OFs_accumulated_experience': 50},
-            ]
-            #alg.available_operators = [1, 2, 3, 4, 5, 6, 7, 8, 9]
-            #alg.available_lines = ['LINEA_1', 'LINEA_2', 'LINEA_3', 'LINEA_4']
-
+            # Configuramos variables globales del algoritmo
             alg.production_date = production_date
             alg.available_operators = users_df[users_df['active']]['operator'].tolist()
             alg.available_lines = lines_df[lines_df['active']]['line'].tolist()
@@ -125,10 +115,14 @@ def app():
                 time.sleep(0.1)  # Si asumimos que el algoritmo tarda 10 segundos en ejecutarse
                 progress_bar.progress(i + 1)
             
+            start_time = time.time()
             logs, (result_unique_individuals, result_best_fitnesses, evaluations_count) = get_logs(alg.run_algorithm)
+            end_time = time.time()
+            execution_time = (end_time - start_time) / 60.0
+            st.write(f"Tiempo de ejecución: {execution_time:.2f} minutos")
             st.write(f"Total de evaluaciones: {evaluations_count}")
             st.markdown("<br>", unsafe_allow_html=True)
-            st.title('◉ ◉ ◉ Resultados ◉ ◉ ◉')
+            st.title(':orange[◉ ◉ ◉ Resultados ◉ ◉ ◉]')
             st.markdown("<br><br>", unsafe_allow_html=True)
 
             col1, col2 = st.columns(2)
