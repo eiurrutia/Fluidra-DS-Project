@@ -6,6 +6,7 @@ import copy
 import random
 import itertools
 import pickle
+import utils
 import model
 import pandas as pd
 import numpy as np
@@ -24,6 +25,8 @@ available_operators = []
 available_lines = []
 all_operators = []
 all_lines = []
+active_operators_by_line = {}
+active_lines_by_order = {}
 
 with open('classifier_model.pickle', 'rb') as file:
         model.classifier_model = pickle.load(file)
@@ -88,19 +91,21 @@ def run_algorithm():
             available_operators_for_this_individual = available_operators.copy()  # Crear una copia de la lista de operadores disponibles
             available_lines_for_this_individual = available_lines.copy()  # Crear una copia de la lista de líneas disponibles
             for order in ORDERS:
+                # Elegir una línea que aún no se haya asignado
+                posible_lines_for_this_order = [line for line in available_lines_for_this_individual if line in active_lines_by_order[order['id']]]
+                if not posible_lines_for_this_order:  # Si no hay más líneas disponibles, no podemos generar un individuo válido
+                    break
+                line = random.choice(posible_lines_for_this_order)
+                available_lines_for_this_individual.remove(line)  # La línea ya no está disponible para las siguientes órdenes
+
                 # Elegir un conjunto de operadores que aún no se hayan asignado
-                valid_operator_combos = [combo for combo in operator_combos if set(combo).issubset(available_operators_for_this_individual)]
+                posible_operators_for_this_line = [operator for operator in available_operators_for_this_individual if operator in active_operators_by_line[line]]
+                valid_operator_combos = [combo for combo in operator_combos if set(combo).issubset(posible_operators_for_this_line)]
                 if not valid_operator_combos:  # Si no hay más operadores disponibles, no podemos generar un individuo válido
                     break
                 operators = random.choice(valid_operator_combos)
                 for operator in operators:
                     available_operators_for_this_individual.remove(operator)  # El operador ya no está disponible para las siguientes órdenes
-
-                # Elegir una línea que aún no se haya asignado
-                if not available_lines_for_this_individual:  # Si no hay más líneas disponibles, no podemos generar un individuo válido
-                    break
-                line = random.choice(available_lines_for_this_individual)
-                available_lines_for_this_individual.remove(line)  # La línea ya no está disponible para las siguientes órdenes
 
                 individual.append({'order': order['id'], 'operators': operators, 'line': line})
 
@@ -114,7 +119,7 @@ def run_algorithm():
         # Si hemos llegado a este punto, es porque todos los intentos de generar un individuo válido han fallado.
         raise Exception(f"No se pudo generar un individuo válido después de {max_attempts} intentos.")
 
-
+    # Registramos la función de inicialización de la población
     toolbox.register("individual", initIndividual)
     toolbox.register("population", tools.initRepeat, list, toolbox.individual)
 
@@ -125,6 +130,7 @@ def run_algorithm():
     # Definimos la función de crossovr
     def custom_crossover(ind1, ind2):
         # Crea copias de los individuos para no modificar los originales
+        modified = False
         new_ind1 = copy.deepcopy(ind1)
         new_ind2 = copy.deepcopy(ind2)
         
@@ -135,10 +141,21 @@ def run_algorithm():
             assignment1 = next(assignment for assignment in new_ind1 if assignment['order'] == order_id)
             assignment2 = next(assignment for assignment in new_ind2 if assignment['order'] == order_id)
             
-            # Intercambia las asignaciones de operadores y líneas
-            assignment1['operators'], assignment2['operators'] = assignment2['operators'], assignment1['operators']
-            assignment1['line'], assignment2['line'] = assignment2['line'], assignment1['line']
 
+            # No se requiere validación de order y line porque se garantiza que los individuos son válidos
+            # Solamente se valida el intercambio de operadores
+            if (set(assignment2['operators']).issubset(active_operators_by_line[assignment1['line']])
+                    and set(assignment1['operators']).issubset(active_operators_by_line[assignment2['line']])):
+                # Intercambia las asignaciones de operadores y líneas
+                assignment1['operators'], assignment2['operators'] = assignment2['operators'], assignment1['operators']
+                assignment1['line'], assignment2['line'] = assignment2['line'], assignment1['line']
+                modified = True
+        
+        if not modified:
+            print('[ERROR-CROSSOVER NOT MODIFIED]:')
+            print(new_ind1)
+            print(new_ind2)
+            return ind1, ind2
 
         # Verifica si las nuevas asignaciones violan las restricciones
         violation = False
@@ -173,12 +190,14 @@ def run_algorithm():
                 attempts = 0
                 max_attempts = 10000  # ajusta este número según sea necesario
                 while attempts < max_attempts:
-                    # Selecciona una nueva línea que aún no se haya asignado
-                    new_line = random.choice(available_lines)
+                    # Selecciona una nueva línea dentro de las posibles:
+                    new_line = random.choice(active_lines_by_order[individual[i]['order']])
 
                     # Verifica si la nueva asignación viola las restricciones
                     violation = False
-                    new_operators = random.choice(operator_combos)
+                    posible_operators_for_this_line = [operator for operator in active_operators_by_line[new_line]]
+                    valid_operator_combos = [combo for combo in operator_combos if set(combo).issubset(posible_operators_for_this_line)]
+                    new_operators = random.choice(valid_operator_combos)
                     for j, assignment in enumerate(individual):
                         if j != i:
                             # Verifica si la nueva línea se repite en otras asignaciones
